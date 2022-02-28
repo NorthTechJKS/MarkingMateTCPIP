@@ -4,11 +4,7 @@ $(document).on("click", ".btn-request-carve", function()
   {
     $.ajax({
       url: "./carve", 
-      data: {
-        message : $(".txt-request-carve").val(),
-        address : $(".txt-transfer-address").val(),
-        port : $(".txt-transfer-port").val()
-      },
+      data: $("#carve-form").serialize(),
       method: "POST",
       dataType: "json",
       success: function(data) 
@@ -86,7 +82,7 @@ $(document).on("click", ".btn-request-carve", function()
           <div class="card-body col col-lg-8 h-100 d-inline-block">
             <!-- right table start -->
             <div class="table-responsive card-body">
-              <form name="frm_list" id="frm-list">
+              <form name="carve_form" id="carve-form">
                 <table id="" class="table table-bordered">
                   <thead class="dddcolor thin-border-bottom"> 
                   </thead>
@@ -96,21 +92,31 @@ $(document).on("click", ".btn-request-carve", function()
                         IP
                       </td>
                       <td>  
-                        <input type='text' class="bg-c-white w100 outline py4 txt-transfer-address" value="211.37.179.64" />                    
+                        <input type='text' class="bg-c-white w100 outline py4 txt-transfer-address" name="address" value="211.37.179.64" />                    
                       </td>
                       <td>
                         PORT
                       </td>
                       <td>  
-                        <input type='text' class="bg-c-white w100 outline py4 txt-transfer-port" value="8889" />                    
+                        <input type='text' class="bg-c-white w100 outline py4 txt-transfer-port" name="port" value="8889" />                    
                       </td>
                     </tr>   
+                    <tr>
+                      <td>
+                        객체명
+                      </td>
+                      <td>  
+                        <input type='text' class="bg-c-white w100 outline py4 txt-text_name" name="text_name" value="1" placeholder="객체명 입력"/>                    
+                      </td>
+                      <td>
+                      </td>
+                    </tr>  
                     <tr>
                       <td>
                         요청메세지
                       </td>
                       <td>  
-                        <input type='text' class="bg-c-white w100 outline py4 txt-request-carve" value="TEST MESSAGE" />                    
+                        <input type='text' class="bg-c-white w100 outline py4 txt-request-carve" name="message" value="" placeholder="요청 메세지 입력"/>                    
                       </td>
                       <td>
                         <input type='button' class="btn2 btn-success mr8 btn-request-carve" value="선택" />
