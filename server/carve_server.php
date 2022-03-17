@@ -7,12 +7,12 @@
   $start_flag = 0;
   $cSock = array();
   $cInfo = array();
-  $sSock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+  $sSock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP) or exit;
   msg("CREATE CLIENT SOCKET");
-  socket_setopt($sSock, SOL_SOCKET, SO_REUSEADDR, 1);
-  socket_bind($sSock, _IP, _PORT);
+  socket_setopt($sSock, SOL_SOCKET, SO_REUSEADDR, 1) or exit;
+  socket_bind($sSock, _IP, _PORT) or exit;
   msg("BIND CLIENT SOCKET");
-  socket_listen($sSock);
+  socket_listen($sSock) or exit;
   msg("LISTEN CLIENT SOCKET");
   while(1)
   {

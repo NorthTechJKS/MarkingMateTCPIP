@@ -8,8 +8,7 @@ class Carve extends Controller
 	function __construct()
 	{
 		parent::__construct();
-		$this->address = "192.168.40.163";
-		$this->port = "8889";
+		require_once 'model/carve_model.php';
 	}
 	
 	//index
@@ -21,6 +20,10 @@ class Carve extends Controller
 	//lists : 리스트 출력
 	function lists()
 	{		    
+		$this->view->search = $this->getRequest();
+		$this->view->data = Carve_Model::selectList($this->view->search);
+		$this->view->select['products'] = Carve_Model::selectListProducts();
+		$this->view->select['equipments'] = Carve_Model::selectListEquipments();
     $this->view->render('template/header');
 		$this->view->render('carve/app');
     $this->view->render('template/footer');
@@ -29,20 +32,164 @@ class Carve extends Controller
 	//detail : 상세정보
 	function carve()
 	{    
-		$this->message = isset($_REQUEST['message'])? $_REQUEST['message'] : '1000';
-		$this->address = isset($_REQUEST['address'])? $_REQUEST['address'] : "192.168.40.180";
-		$this->port		 = isset($_REQUEST['port'])? $_REQUEST['port'] : "8889";
-		$this->text_name = isset($_REQUEST['text_name'])? $_REQUEST['text_name'] : "1";
+		$data = $this->getRequest();
+		$data['carve_code'] = $data['message']; // 각인코드 자동생성
 
-    $data = array(
-      'errorCode' => "000",
-      'message' => "전송 성공"
-    );
-    $data1 = $this->sendMessage("TEXT_NAME", $this->text_name);
-    $data1 .= $this->sendMessage("TEXT_CONTENT", $this->message);
+    $data1 = $this->sendMessage("ARC TEXT_NAME", $data['text_name'], $data);
+    $data2 = $this->sendMessage("TEXT_CONTENT", $data['message'], $data);
+    $data3 = $this->sendMessage("E", "", $data);
+    $data4 = $this->sendMessage("END", "", $data);
+		if($data1 != "접속실패!")
+		{
+			Carve_Model::updateRowMeasureLog($data);
+			Carve_Model::updateRowWorkLoad($data);
+		} 
 		echo json_encode($data1, JSON_UNESCAPED_UNICODE);
 	}
 	
+	// getGrade 선택한 제품과 측정로그를 참조해 등급을 판별한다.
+	function getGrades()
+	{
+		$data = $this->getRequest();		
+		$this->view->data = Carve_Model::selectListGrades($data);		
+		echo json_encode($this->view->data, JSON_UNESCAPED_UNICODE);
+	}
+
+	function setGrades()
+	{
+		$data = $this->getRequest();		
+		Carve_Model::deleteListGrades($data);		//기존의 제품 등급정보 삭제
+		foreach($data['measure_grades'] as $measure_grade)
+		{
+			$measure_grade['product_id'] = $data['product_id'];
+			$measure_grade['insert_user_id'] = $data['insert_user_id'];
+			Carve_Model::insertListGrades($measure_grade);		//제품 등급정보 새로 삽입
+		}		
+		echo json_encode($this->view->data, JSON_UNESCAPED_UNICODE);
+	}
+
+	
+	// getEquipment 선택한 제품과 측정로그를 참조해 등급을 판별한다.
+	function getEquipment()
+	{
+		$data = $this->getRequest();		
+		$this->view->data = Carve_Model::selectRowEquipment($data['equipment_id']);		
+		echo json_encode($this->view->data, JSON_UNESCAPED_UNICODE);
+	}
+
+	function setEquipment()
+	{
+		$data = $this->getRequest();		
+		Carve_Model::updateRowEquipmentTransferFlag($data);		//기존의 설비 전송정보 수정
+		echo json_encode($this->view->data, JSON_UNESCAPED_UNICODE);
+	}
+
+
+	// getGrade 선택한 제품과 측정로그를 참조해 각인코드를 생성한다.한다.
+	function getCarveCode()
+	{
+		$data = $this->getRequest();		
+		$product_id = $data['product_id'];
+		$measure_log_id = $data['measure_log_id'];
+		$product = Carve_Model::selectRowProduct($product_id);
+		$measure_log = Carve_Model::selectRow($measure_log_id);
+		$grade = Carve_Model::selectRowGrade($product_id, $measure_log['hz']);
+		$carve_code = "";
+
+
+		$carve_code .= $product['name_en'];
+		$carve_code .= date("y");
+		$carve_code .= $this->getMonth(date("m"));
+		$carve_code .= $this->getWeek(date("Y-m-d"));		
+		$carve_code .= $grade['grade'];
+
+		//$carve_code = "ABCD-0001";
+
+		//DB를 이용할지 자체 게산식을 사용할지는 추후 적용
+		$this->view->data = array(
+			'carve_code' => $carve_code,
+			'grade' => $grade['grade'],
+			'grade_product_id' => $grade['grade_product_id']
+		);
+		echo json_encode($this->view->data, JSON_UNESCAPED_UNICODE);
+	}
+
+	// 현재 월에 따른 코드값을 얻어온다.
+	function getMonth($month)
+	{
+		$code = "X";
+
+		switch($month)
+		{
+			case '01':
+				$code = '1';
+				break;
+
+			case '02':
+				$code = '2';
+				break;
+
+			case '03':
+				$code = '3';
+				break;
+					
+			case '04':
+				$code = '4';
+				break;
+				
+			case '05':
+				$code = '5';
+				break;
+				
+			case '06':
+				$code = '6';
+				break;
+				
+			case '07':
+				$code = '7';
+				break;
+				
+			case '08':
+				$code = '8';
+				break;
+				
+			case '09':
+				$code = '9';
+				break;
+				
+			case '10':
+				$code = '0';
+				break;
+				
+			case '11':
+				$code = 'A';
+				break;
+				
+			case '12':
+				$code = 'B';
+				break;
+			
+			default :			
+				$code = 'X';
+				break;
+		}
+		
+		return $code;
+	}
+
+	// 이번달이 몇주차인지 구한다.
+	function getWeek($date_str) 
+  { 	
+    //한국 정서인지 교회정서인지는 모르겠지만 일요일부터 시작해야하기 때문에 +1 days(기본값은 월요일부터)
+    $date = date("Y-m-d", strtotime("+1 days", strtotime($date_str)));
+    
+    //전체(년) 기준의 오늘이 몇째주 인지( ex 38째주 )
+    $now_date = date("W", strtotime($date));
+    
+    //지난달 마지막 날짜가 몇째주 인지 (원래 -1을 하는게 맞는데, 일요일을 기준으로 하기 때문에 1일이 지난달 마지막 기준)
+    $prev_date = date("W", strtotime(date("Y-m-01", strtotime($date_str))));
+    return $now_date-$prev_date+1;
+  }
 	// //transfer : server와 연결
 	// function transfer($message)
 	// {
@@ -63,32 +210,36 @@ class Carve extends Controller
 	// }
 		
 	//transfer : server와 연결
-	function transfer($message)
+	function transfer($data)
 	{
     set_time_limit(2); 
     $sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 		socket_set_option($sock, SOL_SOCKET, SO_RCVTIMEO, array('sec' => 1, 'usec' => 0));
 		socket_set_option($sock, SOL_SOCKET, SO_SNDTIMEO, array('sec' => 1, 'usec' => 0));
 		
-		if(!@socket_connect($sock, $this->address, $this->port))
+		if(!@socket_connect($sock, $data['address'], $data['port']))
 		{
 			$sMsg = "접속실패!";  
+			return $sMsg;
 		}
     
 		
     // 사용자의 명령어를 입력받습니다. 
     // time 또는 quit 메시지 말고는 무시 합니다. 
-		$sendMessage = $message;
+		$sendMessage = $data['message'];
 		if(!@socket_write($sock, $sendMessage))
 		{
 			$sMsg = "접속실패!";  
+			return $sMsg;
 		}
 		if(!@$sMsg = socket_read($sock, 4096))
 		{
 			$sMsg = "접속실패!";  
+			return $sMsg;
 		}
 		
 		socket_close($sock);
+		$sMsg = "각인 요청 성공";
 		return $sMsg;
 	}
 
@@ -101,10 +252,10 @@ class Carve extends Controller
     return $in_string; 
   } 
 	
-	function sendMessage($command, $message)
+	function sendMessage($command, $message, $data)
 	{
-		$str = "{$command}[{$message}]";
-		return $this->transfer($str);
+		$data['message'] = "{$command}[{$message}]";
+		return $this->transfer($data);
 	}
 
 	//del : user 데이터 소프트 딜리트
@@ -120,6 +271,9 @@ class Carve extends Controller
 	//loadList 목록 불러오기
 	function loadList()
 	{	
+		$this->view->search = $this->getRequest();		
+		$this->view->data = Carve_Model::selectList($this->view->search);		
+		echo json_encode($this->view->data, JSON_UNESCAPED_UNICODE);
 	}
 
 	//loadList 목록 불러오기
@@ -130,58 +284,53 @@ class Carve extends Controller
 	//REQUEST값 일괄 불러오기
 	function getRequest()
 	{
-			$id 			      = isset($_REQUEST['id'])? $_REQUEST['id'] : '';	
+			$measure_log_id = isset($_REQUEST['measure_log_id'])? $_REQUEST['measure_log_id'] : "0";
+			$product_id = isset($_REQUEST['product_id'])? $_REQUEST['product_id'] : "0";
+			$grade_product_id = isset($_REQUEST['grade_product_id'])? $_REQUEST['grade_product_id'] : "0";
+			$measure_grades = isset($_REQUEST['measure_grades'])? $_REQUEST['measure_grades'] : array();
 			$insert_user_id = $this->view->session->get("user_id");
-			$insert_date 	  = isset($_REQUEST['insert_date'])? $_REQUEST['insert_date'] : date("Y-m-d H:i:s");
 			$update_user_id = $this->view->session->get("user_id");
-			$update_date 	  = isset($_REQUEST['update_date'])? $_REQUEST['update_date'] : date("Y-m-d H:i:s");
-			$delete_flag 	  = isset($_REQUEST['delete_flag'])? $_REQUEST['delete_flag'] : '';			
+			$response_message = isset($_REQUEST['response_message'])? $_REQUEST['response_message'] : '';
+			$message = isset($_REQUEST['message'])? $_REQUEST['message'] : '';
+			$grade	 = isset($_REQUEST['grade'])? $_REQUEST['grade'] : '';
+			$address = isset($_REQUEST['address'])? $_REQUEST['address'] : "192.168.0.210";
+			$port		 = isset($_REQUEST['port'])? $_REQUEST['port'] : "8999";
+			$text_name = isset($_REQUEST['text_name'])? $_REQUEST['text_name'] : "1";
+
 			
+			$equipment_id = isset($_REQUEST['equipment_id'])? $_REQUEST['equipment_id'] : "0";
+			$transfer_flag = isset($_REQUEST['transfer_flag'])? $_REQUEST['transfer_flag'] : "0";
+
+
+			$searchdate = isset($_REQUEST['searchdate']) ? $_REQUEST['searchdate'] : date("Y-m-d");
+			$page = isset($_REQUEST['page']) ? $_REQUEST['page'] : "0";
+			$perPage = 30; // 한번에 로드되는 row수
+			$start = $page * $perPage; //데이터 로드 시작 row지점
+
 			$data = array(
-				'id'			       => $id,
+				'measure_log_id' => $measure_log_id,
+				'product_id'	   => $product_id,
+				'grade_product_id' => $grade_product_id,
+				'measure_grades' => $measure_grades,
 				'insert_user_id' => $insert_user_id,
-				'insert_date'	   => $insert_date,
 				'update_user_id' => $update_user_id,
-				'update_date'	   => $update_date,
-				'delete_flag'	   => $delete_flag
+				'response_message'=> $response_message,
+				'message'			   => $message,
+				'grade'				   => $grade,
+				'address'			   => $address,
+				'port'				   => $port,
+				'text_name'		   => $text_name,
+				'equipment_id'	   => $equipment_id,
+				'transfer_flag'	   => $transfer_flag,
+				'searchdate' => $searchdate,
+				'perPage' => $perPage,
+				'start' => $start		
 			);			
 
 			return $data;
 	}
 	
-	//REQUEST값중 검색조건값 불러오기
-	function getRequestSearch()
-	{			
-		$searchvalue = isset($_REQUEST['searchvalue']) ? $_REQUEST['searchvalue'] : "";
-		$searchtype = isset($_REQUEST['searchtype']) ? $_REQUEST['searchtype'] : "login_id";
-		$category = isset($_REQUEST['category']) ? $_REQUEST['category'] : "all";
-		$start_date = isset($_REQUEST['start_date']) ? $_REQUEST['start_date'] : date("Y-m-d", strtotime("-15 day"));
-		$end_date = isset($_REQUEST['end_date']) ? $_REQUEST['end_date'] : date("Y-m-d", strtotime("+15 day"));
-		$page = isset($_REQUEST['page']) ? $_REQUEST['page'] : "0";
-		$perPage = 30; // 한번에 로드되는 row수
-		$start = $page * $perPage; //데이터 로드 시작 row지점
 
-		switch($searchtype)
-		{
-			default :
-				$searchwhere = 'users.login_id';
-				break;				
-		}
-
-		$search = array(
-			'searchvalue' => $searchvalue, 
-			'searchtype' => $searchtype, 
-			'searchwhere' => $searchwhere,
-			'category' => $category,
-			'start_date' => $start_date,
-			'end_date' => $end_date,
-			'perPage' => $perPage,
-			'start' => $start			
-		);
-
-		return $search;
-	}
-	
 	//입력 데이터 유효성 검사, ajax 처리
 	function validate()
 	{
@@ -198,7 +347,47 @@ class Carve extends Controller
 				'error_message' => "" //에러메세지
 		);
 		//컬럼별로 예외처리항목 작성
+
+		//사용자ID
+		if($data['product_id'] == "") 
+		{
+			$result['error'] = 1;
+			$result['error_message'] = "제품을 선택하세요."; // 에러메세지
+			return $result;
+		} 
+
+		//요청메세지
+		if($data['message'] == "") 
+		{
+			$result['error'] = 1;
+			$result['error_message'] = "요청메세지를 입력하세요."; // 에러메세지
+			return $result;
+		}
+
+		//주소
+		if($data['address'] == "") 
+		{
+			$result['error'] = 1;
+			$result['error_message'] = "주소를 입력하세요."; // 에러메세지
+			return $result;
+		}
 		
+		//포트
+		if($data['port'] == "") 
+		{
+			$result['error'] = 1;
+			$result['error_message'] = "포트를 입력하세요."; // 에러메세지
+			return $result;
+		}
+
+		//객체
+		if($data['text_name'] == "") 
+		{
+			$result['error'] = 1;
+			$result['error_message'] = "객체를 입력하세요."; // 에러메세지
+			return $result;
+		}
 		return $result;
 	}
+
 }
